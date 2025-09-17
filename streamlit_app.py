@@ -17,6 +17,11 @@ st.set_page_config(
 # 페이지가 재실행되어도 유지되어야 하는 값들을 st.session_state에 저장
 if 'youtube' not in st.session_state:
     API_KEY = os.getenv("YOUTUBE_API_KEY")
+    
+    # --- 디버깅 로그 추가 시작 ---
+    st.write(f"DEBUG: API_KEY from os.getenv: {API_KEY[:4] + '...' if API_KEY else 'None'}")
+    # --- 디버깅 로그 추가 끝 ---
+
     if API_KEY:
         try:
             st.session_state.youtube = googleapiclient.discovery.build("youtube", "v3", developerKey=API_KEY)
@@ -24,6 +29,7 @@ if 'youtube' not in st.session_state:
             st.error(f"API 클라이언트 생성 중 오류 발생: {e}")
             st.session_state.youtube = None
     else:
+        st.error("🚨 환경 변수 'YOUTUBE_API_KEY'를 찾을 수 없습니다. Streamlit Cloud Secrets를 확인해주세요.")
         st.session_state.youtube = None
 
 # 국가 리스트
@@ -46,7 +52,11 @@ def get_video_categories(region_code):
         response = request.execute()
         categories = {item['snippet']['title']: item['id'] for item in response['items'] if item['snippet'].get('assignable', False)}
         return {"전체": "0", **categories}
-    except Exception:
+    except Exception as e:
+        # --- 디버깅 로그 추가 시작 ---
+        st.write("DEBUG: Error fetching categories from YouTube API:")
+        st.exception(e)
+        # --- 디버깅 로그 추가 끝 ---
         return {"전체": "0"}
 
 @st.cache_data(ttl=3600)
@@ -104,7 +114,7 @@ if cols[2].button("🔄 동영상 불러오기"):
         category_title = f" ({selected_category_name})" if selected_category_id != "0" else ""
         st.header(f"🔥 지금 {selected_country_name}{category_title}에서 가장 인기있는 동영상")
 
-        with st.spinner('동영상을 불러오는 중입니다...'):
+        with st.spinner("동영상을 불러오는 중입니다..."):
             video_items = get_popular_videos(selected_region_code, selected_category_id)
 
             if video_items:
